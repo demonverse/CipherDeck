@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIPHER MACHINE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --amber: #ffb300;
+      --amber-dim: #7a5500;
+      --amber-glow: rgba(255, 179, 0, 0.15);
+      --bg: #0a0a08;
+      --panel: #111108;
+      --panel-border: #2a2a1a;
+      --screen-bg: #050500;
+      --text: #ffb300;
+      --text-dim: #664a00;
+      --green: #39ff14;
+      --error: #ff4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(255,179,0,0.015) 2px,
+          rgba(255,179,0,0.015) 4px
+        );
+    }
+
+    /* Scanline flicker */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0,0,0,0.07) 0px,
+        rgba(0,0,0,0.07) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    h1 {
+      font-family: 'Orbitron', monospace;
+      font-weight: 900;
+      font-size: clamp(1.6rem, 5vw, 2.8rem);
+      letter-spacing: 0.3em;
+      color: var(--amber);
+      text-shadow:
+        0 0 10px var(--amber),
+        0 0 30px rgba(255,179,0,0.4),
+        0 0 60px rgba(255,179,0,0.2);
+      animation: flicker 8s infinite;
+    }
+
+    .subtitle {
+      font-size: 0.7rem;
+      letter-spacing: 0.5em;
+      color: var(--text-dim);
+      margin-top: 0.4rem;
+    }
+
+    @keyframes flicker {
+      0%, 95%, 100% { opacity: 1; }
+      96% { opacity: 0.85; }
+      97% { opacity: 1; }
+      98% { opacity: 0.9; }
+    }
+
+    .machine {
+      width: 100%;
+      max-width: 780px;
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      background: var(--panel);
+      box-shadow:
+        0 0 40px rgba(255,179,0,0.05),
+        inset 0 1px 0 rgba(255,179,0,0.1);
+      overflow: hidden;
+    }
+
+    .machine-top {
+      background: #0d0d0a;
+      border-bottom: 1px solid var(--panel-border);
+      padding: 1rem 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--amber-dim);
+    }
+    .dot.active { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+
+    .machine-top span {
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: var(--text-dim);
+      margin-left: auto;
+    }
+
+    .body {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.4rem;
+    }
+
+    label {
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: var(--text-dim);
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    /* Cipher selector */
+    .cipher-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 0.5rem;
+    }
+
+    .cipher-btn {
+      background: var(--screen-bg);
+      border: 1px solid var(--panel-border);
+      color: var(--text-dim);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      padding: 0.6rem 0.5rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+      border-radius: 2px;
+    }
+
+    .cipher-btn:hover {
+      border-color: var(--amber-dim);
+      color: var(--amber);
+      background: var(--amber-glow);
+    }
+
+    .cipher-btn.selected {
+      border-color: var(--amber);
+      color: var(--amber);
+      background: var(--amber-glow);
+      box-shadow: 0 0 8px rgba(255,179,0,0.2);
+    }
+
+    .cipher-btn .cipher-name {
+      display: block;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.6rem;
+      font-weight: 700;
+    }
+
+    .cipher-description {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      min-height: 1.2em;
+      letter-spacing: 0.05em;
+      line-height: 1.5;
+    }
+
+    /* Mode toggle */
+    .mode-toggle {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--panel-border);
+      border-radius: 2px;
+      overflow: hidden;
+      width: fit-content;
+    }
+
+    .mode-btn {
+      background: var(--screen-bg);
+      border: none;
+      color: var(--text-dim);
+      font-family: 'Orbitron', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      padding: 0.5rem 1.2rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .mode-btn.active {
+      background: var(--amber);
+      color: #000;
+    }
+
+    .mode-btn:not(.active):hover {
+      color: var(--amber);
+    }
+
+    /* Inputs */
+    .screen {
+      background: var(--screen-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 2px;
+      padding: 0.8rem;
+    }
+
+    textarea, input[type="text"] {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--amber);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.9rem;
+      outline: none;
+      resize: none;
+      caret-color: var(--amber);
+      line-height: 1.6;
+    }
+
+    textarea { min-height: 90px; }
+
+    textarea::placeholder, input::placeholder {
+      color: var(--text-dim);
+    }
+
+    input[type="text"] {
+      font-size: 0.85rem;
+    }
+
+    /* Row layout */
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 500px) {
+      .row { grid-template-columns: 1fr; }
+    }
+
+    /* Process button */
+    .process-btn {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      font-family: 'Orbitron', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.4em;
+      padding: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-radius: 2px;
+      text-shadow: 0 0 8px rgba(255,179,0,0.5);
+    }
+
+    .process-btn:hover {
+      background: var(--amber);
+      color: #000;
+      box-shadow: 0 0 20px rgba(255,179,0,0.3);
+      text-shadow: none;
+    }
+
+    .process-btn:active {
+      transform: scale(0.99);
+    }
+
+    /* Output */
+    .output-screen {
+      background: var(--screen-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 2px;
+      padding: 1rem;
+      min-height: 80px;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .output-text {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.95rem;
+      color: var(--green);
+      text-shadow: 0 0 8px rgba(57,255,20,0.4);
+      word-break: break-all;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .output-empty {
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+    }
+
+    .copy-hint {
+      position: absolute;
+      bottom: 0.5rem;
+      right: 0.7rem;
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+    }
+
+    .copied-flash {
+      color: var(--green) !important;
+    }
+
+    .error-text {
+      color: var(--error);
+      font-size: 0.8rem;
+    }
+
+    /* Footer strip */
+    .machine-footer {
+      border-top: 1px solid var(--panel-border);
+      padding: 0.6rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .machine-footer span {
+      font-size: 0.6rem;
+      letter-spacing: 0.3em;
+      color: var(--text-dim);
+    }
+
+    .status-light {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      display: inline-block;
+      margin-right: 0.4rem;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>CIPHER MACHINE</h1>
+  <p class="subtitle">OFFLINE &bull; NO NETWORK &bull; NO COOKIES</p>
+</header>
+
+<div class="machine">
+  <div class="machine-top">
+    <div class="dot active"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <span>CRYPTO/UNIT/MK1</span>
+  </div>
+
+  <div class="body">
+
+    <!-- Cipher select -->
+    <div>
+      <label>// SELECT CIPHER ALGORITHM</label>
+      <div class="cipher-grid" id="cipherGrid"></div>
+      <div class="cipher-description" id="cipherDesc" style="margin-top:0.6rem">&nbsp;</div>
+    </div>
+
+    <!-- Mode -->
+    <div>
+      <label>// MODE</label>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btnEncrypt" onclick="setMode('encrypt')">ENCRYPT</button>
+        <button class="mode-btn" id="btnDecrypt" onclick="setMode('decrypt')">DECRYPT</button>
+      </div>
+    </div>
+
+    <!-- Input + Key -->
+    <div class="row">
+      <div>
+        <label>// INPUT TEXT</label>
+        <div class="screen">
+          <textarea id="inputText" placeholder="Enter message..."></textarea>
+        </div>
+      </div>
+      <div>
+        <label>// KEY <span id="keyLabel" style="font-size:0.6rem"></span></label>
+        <div class="screen">
+          <input type="text" id="keyInput" placeholder="Key...">
+        </div>
+      </div>
+    </div>
+
+    <!-- Process -->
+    <button class="process-btn" onclick="process()">[ PROCESS ]</button>
+
+    <!-- Output -->
+    <div>
+      <label>// OUTPUT</label>
+      <div class="output-screen" onclick="copyOutput()" title="Click to copy">
+        <div id="outputText" class="output-empty">AWAITING INPUT...</div>
+        <span class="copy-hint" id="copyHint">CLICK TO COPY</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="machine-footer">
+    <span><span class="status-light"></span>SYSTEM ONLINE</span>
+    <span>ALL PROCESSING LOCAL</span>
+  </div>
+</div>
+
+<script>
+  const CIPHERS = {{ ciphers | tojson }};
+  let selectedCipher = null;
+  let mode = 'encrypt';
+
+  // Build cipher buttons
+  const grid = document.getElementById('cipherGrid');
+  Object.entries(CIPHERS).forEach(([id, info]) => {
+    const btn = document.createElement('button');
+    btn.className = 'cipher-btn';
+    btn.innerHTML = `<span class="cipher-name">${info.name}</span>`;
+    btn.onclick = () => selectCipher(id, btn, info);
+    grid.appendChild(btn);
+  });
+
+  function selectCipher(id, btn, info) {
+    selectedCipher = id;
+    document.querySelectorAll('.cipher-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('cipherDesc').textContent = info.description;
+    document.getElementById('keyLabel').textContent = info.key_hint ? `(${info.key_hint})` : '';
+    document.getElementById('keyInput').placeholder = info.key_hint || 'Key...';
+  }
+
+  function setMode(m) {
+    mode = m;
+    document.getElementById('btnEncrypt').classList.toggle('active', m === 'encrypt');
+    document.getElementById('btnDecrypt').classList.toggle('active', m === 'decrypt');
+  }
+
+  async function process() {
+    if (!selectedCipher) {
+      showOutput('SELECT A CIPHER FIRST', true);
+      return;
+    }
+    const text = document.getElementById('inputText').value;
+    const key = document.getElementById('keyInput').value;
+    if (!text.trim()) {
+      showOutput('NO INPUT PROVIDED', true);
+      return;
+    }
+
+    const res = await fetch('/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cipher: selectedCipher, text, key, mode })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      showOutput('ERROR: ' + data.error, true);
+    } else {
+      showOutput(data.result, false);
+    }
+  }
+
+  function showOutput(text, isError) {
+    const el = document.getElementById('outputText');
+    el.textContent = text;
+    el.className = isError ? 'error-text' : 'output-text';
+  }
+
+  function copyOutput() {
+    const el = document.getElementById('outputText');
+    if (el.classList.contains('output-empty') || el.classList.contains('error-text')) return;
+    navigator.clipboard.writeText(el.textContent).then(() => {
+      const hint = document.getElementById('copyHint');
+      hint.textContent = 'COPIED!';
+      hint.classList.add('copied-flash');
+      setTimeout(() => {
+        hint.textContent = 'CLICK TO COPY';
+        hint.classList.remove('copied-flash');
+      }, 1500);
+    });
+  }
+
+  // Enter key triggers process
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.ctrlKey) process();
+  });
+</script>
+</body>
+</html>
