@@ -9,7 +9,7 @@ Built as a gift for a teenager who likes codes.
 
 Three interfaces, one cipher engine: a curses terminal app for the Pi, a
 Flask web app for a local network, and a
-**[browser version](https://github.com/YOURNAME/REPONAME)** that needs no
+**[browser version](https://github.com/dmonoverse/ciphers)** that needs no
 server at all.
 
 ---
